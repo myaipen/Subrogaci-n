@@ -116,11 +116,11 @@ footer{margin-top:30px;color:var(--muted);font-size:12.5px;font-style:italic}
 <div class="card" style="margin-top:14px"><h3>Ingreso por agencia</h3><p class="note" id="agNote"></p><div class="tw"><table class="t" id="agTbl"></table></div></div>
 
 <h2>Revisión de pacientes — Grupos 2 y 3</h2>
-<p class="h2s">Pacientes que están en el universo por procedencia de agencia (Grupo 2) o por cargo de subrogación (Grupo 3) pero que no están en el archivo de Subrogación. Si alguno aparece por motivos operativos y no debe contarse como subrogación, márcalo en «Excluir»: el tablero se recalcula al instante.</p>
+<p class="h2s">Pacientes del universo por procedencia de agencia (Grupo 2) o por cargo de subrogación (Grupo 3) que no están en el archivo de Subrogación. La lista sigue el filtro de mes y sede: por defecto muestra solo quienes tuvieron cargos en el periodo; cambia a «Todo el universo» para ver también a los que no tienen cargos. Si alguno aparece por motivos operativos y no debe contarse como subrogación, márcalo en «Excluir»: el tablero se recalcula al instante.</p>
 <div class="card">
   <div class="rev-ctl">
     <select id="rG"><option value="0">Grupo 2 y 3</option><option value="2">Solo Grupo 2</option><option value="3">Solo Grupo 3</option></select>
-    <select id="rM"><option value="all">Con y sin cargos</option><option value="con">Solo con cargos</option><option value="sin">Solo sin cargos</option></select>
+    <select id="rM"><option value="per">Con cargos en el periodo seleccionado</option><option value="alta">Con alta en el periodo seleccionado</option><option value="all">Todo el universo (con y sin cargos)</option></select>
     <input type="search" id="rQ" placeholder="Buscar Nº de historia o iniciales">
     <span class="rev-sum" id="revSum"></span>
     <button class="btn" id="rClr">Desmarcar todos</button>
@@ -368,16 +368,23 @@ function render(){
 }
 
 // ---------- revisión G2/G3
-const RV={g:'0',m:'all',q:''};
+const RV={g:'0',m:'per',q:''};
 function renderRev(){
-  const pl=P.filter(p=>(RV.g==='0'||String(p.grp)===RV.g)&&(RV.m==='all'||(RV.m==='con'?p.n>0:p.n===0))&&(!RV.q||(p.hist+' '+p.ini).toLowerCase().includes(RV.q.toLowerCase())))
-    .sort((a,b)=>b.ing-a.ing||b.alta-a.alta);
+  const per=S.ta===S.tb?tlf(S.ta):tlf(S.ta)+' – '+tlf(S.tb);
+  // actividad de cada paciente DENTRO del periodo/sede seleccionados (incluye pacientes marcados para poder desmarcarlos)
+  const st={};P.forEach(p=>st[p.id]={n:0,ing:0});
+  D.g23.lines.forEach(l=>{if(l[1]>=S.ta&&l[1]<=S.tb&&(S.s<0||l[2]===S.s)){st[l[0]].n++;st[l[0]].ing+=l[8]}});
+  const inAlta=p=>p.alta>=S.ta&&p.alta<=S.tb&&(S.s<0||p.sede===S.s);
+  let pl=P.filter(p=>(RV.g==='0'||String(p.grp)===RV.g)&&(RV.m==='all'?(S.s<0||p.sede===S.s):RV.m==='alta'?inAlta(p):st[p.id].n>0)
+    &&(!RV.q||(p.hist+' '+p.ini).toLowerCase().includes(RV.q.toLowerCase())));
+  if(S.g==='G1')pl=[];
+  pl.sort((a,b)=>st[b.id].ing-st[a.id].ing||b.alta-a.alta);
   const nEx=P.filter(p=>S.ex.has(pkey(p))).length,ingEx=P.filter(p=>S.ex.has(pkey(p))).reduce((s,p)=>s+p.ing,0);
-  $('#revSum').textContent=`${pl.length} de ${P.length} pacientes · Excluidos: ${nEx} (${fmt(ingEx)})`;
-  let h='<tr><th class="l" style="text-align:center">Excluir</th><th class="l">Nº historia</th><th class="l">Iniciales</th><th>Grupo</th><th class="l">Procedencia / agencia</th><th class="l">Sede</th><th>Alta</th><th>Atenciones</th><th>Ingreso</th><th>Último cargo</th></tr>';
-  pl.forEach(p=>{const ex=S.ex.has(pkey(p));
-    h+=`<tr class="${ex?'exd':''}"><td style="text-align:center"><input type="checkbox" data-k="${pkey(p)}" ${ex?'checked':''} aria-label="Excluir paciente ${p.hist}"></td><td class="l">${p.hist}</td><td class="l">${p.ini}</td><td>${p.grp}</td><td class="l">${p.ag||'—'}</td><td class="l">${D.sedes[p.sede]}</td><td>${p.alta?tl(p.alta):'—'}</td><td>${num(p.n)}</td><td>${fmt(p.ing)}</td><td>${p.ultimo?tl(p.ultimo):'sin cargos'}</td></tr>`});
-  if(!pl.length)h+='<tr><td colspan="10" class="na" style="text-align:left">Sin pacientes con este filtro.</td></tr>';
+  $('#revSum').textContent=`${pl.length} paciente(s) · ${per} · universo G2/G3: ${P.length} · Excluidos: ${nEx} (${fmt(ingEx)})`;
+  let h=`<tr><th class="l" style="text-align:center">Excluir</th><th class="l">Nº historia</th><th class="l">Iniciales</th><th>Grupo</th><th class="l">Procedencia / agencia</th><th class="l">Sede</th><th>Alta</th><th>Atenciones (periodo)</th><th>Ingreso (periodo)</th><th>Último cargo</th></tr>`;
+  pl.forEach(p=>{const ex=S.ex.has(pkey(p)),x=st[p.id];
+    h+=`<tr class="${ex?'exd':''}"><td style="text-align:center"><input type="checkbox" data-k="${pkey(p)}" ${ex?'checked':''} aria-label="Excluir paciente ${p.hist}"></td><td class="l">${p.hist}</td><td class="l">${p.ini}</td><td>${p.grp}</td><td class="l">${p.ag||'—'}</td><td class="l">${D.sedes[p.sede]}</td><td>${p.alta?tl(p.alta):'—'}</td><td>${num(x.n)}</td><td>${fmt(x.ing)}</td><td>${p.ultimo?tl(p.ultimo):'sin cargos'}</td></tr>`});
+  if(!pl.length)h+=`<tr><td colspan="10" class="na" style="text-align:left">${S.g==='G1'?'El filtro «Grupo 1» no incluye pacientes de los Grupos 2 y 3.':'Ningún paciente de los Grupos 2 y 3 cumple este filtro en el periodo seleccionado. Cambia a «Todo el universo» para verlos todos.'}</td></tr>`;
   $('#revTbl').innerHTML=h;
 }
 $('#revTbl').addEventListener('change',e=>{const c=e.target;if(c.type!=='checkbox')return;c.checked?S.ex.add(c.dataset.k):S.ex.delete(c.dataset.k);saveEx();render()});
