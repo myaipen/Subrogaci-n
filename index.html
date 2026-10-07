@@ -105,7 +105,7 @@ footer{margin-top:30px;color:var(--muted);font-size:12.5px;font-style:italic}
 <p class="h2s">Clasificación según el archivo Clasificación 3 · clic en un servicio para ver sus subclasificaciones / conceptos · VS LM = periodo anterior, VS U3M = promedio de los 3 meses previos, VS LY = mismo periodo de 2025.</p>
 <div class="card"><h3 id="svTitle">Ingresos por servicio (MDP)</h3><p class="note" id="svNote"></p><div class="tw"><table class="t" id="svTbl"></table></div></div>
 
-<h2>Evolutivo por médico</h2>
+<h2>Médicos</h2>
 <p class="h2s">Ingresos, atenciones y pacientes únicos por médico (Profesional Historia) · línea de cargo = atención · reacciona a Sede, Grupo y Mes.</p>
 <div class="card"><h3 id="mdTitle">Médicos por ingresos</h3><p class="note" id="mdNote"></p><div class="tw"><table class="t" id="mdTbl"></table></div></div>
 <div class="card" style="margin-top:14px"><h3>Evolutivo de ingresos por médico</h3><p class="note">Ingreso mensual por médico (los 6 de mayor ingreso en 2026 + «Otros»). Cada médico conserva siempre su color.</p><div class="legend" id="lgMed"></div><div id="chMed"></div></div>
@@ -313,12 +313,12 @@ function render(){
   // ----- médicos
   const mr=rows('med'),mc=compare(mr,r=>r.k1);
   const mList=[...mc.entries()].filter(([k,o])=>o.v[0][1]>0||o.v[0][0]>0).sort((a,b)=>b[1].v[0][0]-a[1].v[0][0]);
-  $('#mdTitle').textContent='Top 20 médicos por ingresos — '+per;
-  $('#mdNote').textContent=`${mList.length} médicos con actividad en este filtro · badge = comparación contra ${L===1?'el mes anterior (LM)':'el periodo anterior'} · pacientes únicos = pacientes distintos del médico en el periodo.`;
+  $('#mdTitle').textContent='Médicos por ingresos — '+per;
+  $('#mdNote').textContent=`${mList.length} médicos con actividad en este filtro (solo pacientes de subrogación, por eso son menos que en el dashboard de productividad; se muestran hasta 20) · badge = comparación contra ${L===1?'el mes anterior (LM)':'el periodo anterior'} · pacientes únicos = pacientes distintos del médico en el periodo.`;
   const medRow=(name,type,o,pt,spc)=>{const pc=pt;return `<tr><td>${name}${type?` <span class="tp ${type==='Interno'?'i':'e'}">${type}</span>`:''}</td>
     <td>${fmt(o.v[0][0])}</td><td>${dlt(o.v[0][0],base(o,1,0),'m')}</td><td>${num(o.v[0][1])}</td><td>${dlt(o.v[0][1],base(o,1,1),'c')}</td>
-    <td>${pc[0]==null?'—':num(pc[0])}</td><td>${dlt(pc[0],pc[1],'c')}</td><td>${spark(o.sp,spc)}</td></tr>`};
-  h=`<tr><th>Médico</th><th>Ingresos</th><th>${lm}</th><th>Atenciones</th><th>${lm}</th><th>Pac. únicos</th><th>${lm}</th><th>Evolutivo</th></tr>`;
+    <td>${pc[0]==null?'—':num(pc[0])}</td><td>${dlt(pc[0],pc[1],'c')}</td></tr>`};
+  h=`<tr><th>Médico</th><th>Ingresos</th><th>${lm}</th><th>Atenciones</th><th>${lm}</th><th>Pac. únicos</th><th>${lm}</th></tr>`;
   const top=mList.slice(0,20),rest=mList.slice(20);
   top.forEach(([k,o])=>{const wl=wins().w[1];const pu=[patMed(k,S.ta,S.tb),wl.ok?patMed(k,wl.a,wl.b):null];
     h+=medRow(D.med[k],o.k2===0?'Interno':'Externo',o,pu,o.k2===0?cv('--c1'):cv('--c2'))});
